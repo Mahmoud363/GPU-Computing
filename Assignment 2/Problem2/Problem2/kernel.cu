@@ -11,7 +11,7 @@
 using namespace std;
 float duration_kernel;
 
-const int BLOCK_SIZE = 16;
+const int BLOCK_SIZE = 32;
 __host__
 void matrix_mul_seq(float* a, float* b, float* p, int r1, int w, int c2)
 {
@@ -207,7 +207,7 @@ int main()
 	cout << " the speedup/slowdown (timing the kernel only ) is " << duration_cpu / (duration_kernel / 1000) << endl;
 	cout << " the speedup/slowdown (timing the device and the memory allocation overheads ) is " << duration_cpu / duration_device << endl;
 
-	int operations_count = ((r1 * w * c2) + (r1 * c2 * (w - 1)));
+	unsigned long long int operations_count = ((r1 * w * c2) + (r1 * c2 * (w - 1)));
 	cout << " The Performance in GFLOPS = " << operations_count / duration_device << endl;
 
 	return 0;

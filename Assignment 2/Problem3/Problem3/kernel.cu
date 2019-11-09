@@ -7,7 +7,7 @@
 #include<iostream>
 #include<cmath>
 #include<time.h>
-#define TILE_WIDTH 16//block size
+#define TILE_WIDTH 16  //block size
 
 
 double duration_gpu, duration_cpu, duration_kernel, duration_cpumem;
@@ -118,7 +118,7 @@ void matrix_mul_parallel(double* h_a, double* h_b, double* h_p, int r1, int w, i
 
 
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-	dim3 dimGrid(ceil(c2 / float(dimBlock.x * 2)), (ceil(r1 / float(dimBlock.y * 2))));
+	dim3 dimGrid(ceil(c2 / float(dimBlock.x)), (ceil(r1 / float(dimBlock.y))));
 	clock_t start = clock();
 	MatrixMulKernel << <dimGrid, dimBlock >> > (d_a, d_b, d_p, w, r1, c2);
 	cudaDeviceSynchronize();
@@ -213,6 +213,9 @@ int main()
 	printf("There are %ld different elements\n", counter);
 	printf("speedup without memory: %lf\n", duration_cpu / duration_kernel);
 	printf("speedup with memory: %lf\n", duration_cpumem / duration_gpu);
+	unsigned long long int operations_count = ((r1 * w * c2) + (r1 * c2 * (w - 1)));
+	printf("For a block size of %d x %d\n", TILE_WIDTH, TILE_WIDTH);
+	cout << " The Performance in GFLOPS = " << operations_count / (duration_gpu* pow(10, 9)) << endl;
 	system("pause");
 	return 0;
 }

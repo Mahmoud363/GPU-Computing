@@ -7,7 +7,7 @@
 #include<iostream>
 #include<cmath>
 #include<time.h>
-#define TILE_WIDTH 16//block size
+#define TILE_WIDTH 4//block size
 
 
 double duration_gpu, duration_cpu, duration_kernel, duration_cpumem;
