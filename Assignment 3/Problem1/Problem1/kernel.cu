@@ -1,7 +1,7 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-
+#include<string>
 #include <stdio.h>
 #include "CImg.h"
 using namespace cimg_library;
@@ -165,19 +165,12 @@ void gpu_kernel(unsigned char* h_in, int height, int width, double filter[][3])
 		}
 	}
 	cout << count << "  " << n << endl;
-	/*for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			cout << (int)h_img[i * width + j] << " ";
-		}
-		cout << endl;
-	}*/
+
 	CImg<unsigned char> image_out(width, height, 1, 1, 0);
 	for (int i = 0; i < height; i++) {
 	  for (int j = 0; j < width; j++) {
 		image_out(j, i, 0, 0) = h_img[i * width + j];
-		//cout << h_img[i * width + j] << " ";
 	  }
-	 // cout << endl;
 	}
 	image_out.save("out.jpg");
 
@@ -215,12 +208,35 @@ int main()
 	   {-1,5,-1},
 	   {0,-1,0}
 	};
-	double blur[3][3] = {
-	   {-2,-1,0},
-	   {-1,1,1},
-	   {0,1,2}
+	double left[3][3] = {
+	   {1,0,-1},
+	   {2,0,-2},
+	   {1,0,-1}
 	};
-	CImg<unsigned char> image("fl.jpg");
+	double right[3][3] = {
+	   {-1,0,1},
+	   {-2,0,2},
+	   {-1,0,1}
+	};
+	double top[3][3] = {
+		{1,2,1},
+		{0,0,0},
+		{-1,-2,-1}
+	};
+	double bottom[3][3] = {
+		{-1,-2,-1},
+		{0,0,0},
+		{1,2,1}
+	};
+	string path;
+	cout <<"Enter the image path: ";
+	cin >> path;
+	cout << "Enter the number of the operation: \n";
+	printf("1 for blur. 2 for emboss. 3 for outline. 4 for sharpen\n 5 for left sobel. 6 for right sobel. 7 for top sobel. 8 for bottom sobel\n");
+	int type;
+	cin >> type;
+
+	CImg<unsigned char> image(path.c_str());
 	image.channel(0);
 	unsigned char *h_img;
 
@@ -240,16 +256,31 @@ int main()
 	clock_t  start;
 
 
-
-	gpu_kernel(h_img, height, width);
-
-
-
-
-	// if memory cannot be allocated
-	if (h_img == NULL)
+	switch (type)
 	{
-		printf("Error! memory not allocated.");
-		exit(0);
+	case 1:gpu_kernel(h_img, height, width, blur);
+		break;
+	case 2:gpu_kernel(h_img, height, width, emboss);
+		break;
+	case 3:gpu_kernel(h_img, height, width, sharpen);
+		break;
+	case 4:gpu_kernel(h_img, height, width, outline);
+		break;
+	case 5:gpu_kernel(h_img, height, width, left);
+		break;
+	case 6:gpu_kernel(h_img, height, width, right);
+		break;
+	case 7:gpu_kernel(h_img, height, width, top);
+		break;
+	case 8:gpu_kernel(h_img, height, width, bottom);
+		break;
+	default:
+		printf("Invalid operation");
+		break;
 	}
+	free(h_img);
+
+
+
+	return 0;
 }
