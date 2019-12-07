@@ -262,9 +262,9 @@ int main()
 		break;
 	case 2:gpu_kernel(h_img, height, width, emboss);
 		break;
-	case 3:gpu_kernel(h_img, height, width, sharpen);
+	case 3:gpu_kernel(h_img, height, width,outline );
 		break;
-	case 4:gpu_kernel(h_img, height, width, outline);
+	case 4:gpu_kernel(h_img, height, width, sharpen);
 		break;
 	case 5:gpu_kernel(h_img, height, width, left);
 		break;
