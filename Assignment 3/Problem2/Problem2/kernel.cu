@@ -28,7 +28,7 @@ __global__ void scan(unsigned char* X, unsigned char* Y, unsigned char* Z, int c
 	if (index < (colsize * rowsize))
 	{
 		if (i < colsize && j < rowsize) {
-			T[threadIdx.x] = Y[index];
+			T[threadIdx.x] = Y[index]; // error 
 		}
 		else T[threadIdx.x] = 0;
 		//the code below performs iterative scan on T
@@ -58,12 +58,12 @@ __global__ void fix(unsigned char* X, unsigned char* Y, int colsize, int rowsize
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 	int index = j * colsize + i;
 	int aux = blockIdx.y * blockDim.x + blockIdx.x - 1;
-	
-	if (blockIdx.x) {
-		int temp=Y[aux];
-		X[index] += temp;
+	if (index < colsize*rowsize) {
+		if (blockIdx.x) {
+			int temp = Y[aux];
+			X[index] += temp;
+		}
 	}
-		
 }
 
 __global__ void transpose(unsigned char *input, unsigned char *output, int width, int height)
@@ -91,13 +91,12 @@ __global__ void transpose(unsigned char *input, unsigned char *output, int width
 
 void gpu_kernel(unsigned char* h_in, int height, int width){
 
-	unsigned char* d_in, *d_out, *aux, *auxout,*d_in2,*d_fin;
+	unsigned char* d_in, *d_out, *aux, *auxout, *aux2, *auxout2,*d_in2,*d_fin;
 	int n = height * width;
 	checkCudaErrors(cudaMalloc(&d_in, sizeof(unsigned char) *n));
 	checkCudaErrors(cudaMalloc(&d_fin, sizeof(unsigned char) *n));
-	checkCudaErrors(cudaMalloc(&d_in2, sizeof(unsigned char) *n));
-	checkCudaErrors(cudaMalloc(&aux, sizeof(unsigned char) *512));
-	checkCudaErrors(cudaMalloc(&auxout, sizeof(unsigned char) *512));
+	checkCudaErrors(cudaMalloc(&aux, sizeof(unsigned char) * 512 * height));
+	checkCudaErrors(cudaMalloc(&auxout, sizeof(unsigned char) *512*height));
 	checkCudaErrors(cudaMalloc(&d_out, sizeof(unsigned char) * n));
 	checkCudaErrors(cudaMemcpy(d_in, h_in, sizeof(unsigned char) * n, cudaMemcpyHostToDevice));
 
@@ -114,16 +113,16 @@ void gpu_kernel(unsigned char* h_in, int height, int width){
 	dim3 threads2(16,16);
 	scan << <grids, threads >> > (d_out, d_in,aux, width, height);
 	scan << <1, 512 >> > (auxout, aux,NULL, width, 1);
-	fix << <grids, threads>> > (d_out, aux,width, height);
+	fix << <grids, threads>> > (d_out, auxout,width, height);
 
 	transpose << <grids2, threads2 >> > (d_out, d_out, width, height);
 	
 	scan << <grids3, threads >> > (d_fin, d_out, aux, height, width);
 	scan << <1, 512 >> > (auxout, aux, NULL, height, 1);
-	fix << <grids3, threads >> > (d_fin, aux, height, width);
+	fix << <grids3, threads >> > (d_fin, auxout, height, width);
 	transpose << < grids2, threads2 >> > (d_fin, d_fin, height, width);
+	
 	unsigned char *h_img;
-
 	h_img = (unsigned char *)malloc(height * width * sizeof(unsigned char));
 	checkCudaErrors(cudaMemcpy(h_img, d_fin, sizeof(unsigned char) * n, cudaMemcpyDeviceToHost));
 
@@ -133,6 +132,7 @@ void gpu_kernel(unsigned char* h_in, int height, int width){
 		}
 		cout << endl;
 	}
+
 	cudaEventCreate(&stop);
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
@@ -170,48 +170,39 @@ double cpu_reduce(double *h_in, int h_in_len) {
 	}
 	return sum;
 }
+void prefixSum2D(unsigned char *a,int r, int c)
+{
+	unsigned char *psa;
+	psa = (unsigned char *)malloc(r *c* sizeof(unsigned char));
+	psa[0] = a[0];
+
+	// Filling first row and first column 
+	for (int i = 1; i < c; i++)
+		psa[i] = psa[i - 1] + a[i];
+	for (int i = 0; i < r; i++)
+		psa[i*c] = psa[(i - 1)*c] + a[i*c];
+
+	// updating the values in the cells 
+	// as per the general formula 
+	for (int i = 1; i < r; i++) {
+		for (int j = 1; j < c; j++)
+
+			// values in the cells of new 
+			// array are updated 
+			psa[i*c + j] = psa[(i - 1)*c + j] + psa[i*c + (j - 1)];
+			
+	}
+
+	// displaying the values of the new array 
+	for (int i = 0; i < r; i++) {
+		for (int j = 0; j < c; j++)
+			cout << (int)psa[i*c+j] << " ";
+		cout << "\n";
+	}
+}
 int main()
 {
-	/*double blur[3][3] = {
-	   {0.0625,.125,0.0625},
-	   {0.125,0.25,0.125},
-	   {0.0625,0.125,.0625}
-	};
-	double emboss[3][3] = {
-	   {-2,-1,0},
-	   {-1,1,1},
-	   {0,1,2}
-	};
-	double outline[3][3] = {
-	   {-1,-1,-1},
-	   {-1,8,-1},
-	   {-1,-1,-1}
-	};
-	double sharpen[3][3] = {
-	   {0,-1,0},
-	   {-1,5,-1},
-	   {0,-1,0}
-	};
-	double left[3][3] = {
-	   {1,0,-1},
-	   {2,0,-2},
-	   {1,0,-1}
-	};
-	double right[3][3] = {
-	   {-1,0,1},
-	   {-2,0,2},
-	   {-1,0,1}
-	};
-	double top[3][3] = {
-		{1,2,1},
-		{0,0,0},
-		{-1,-2,-1}
-	};
-	double bottom[3][3] = {
-		{-1,-2,-1},
-		{0,0,0},
-		{1,2,1}
-	};
+	/*
 	string path;
 	cout << "Enter the image path: ";
 	cin >> path;
@@ -222,11 +213,12 @@ int main()
 
 	CImg<unsigned char> image(path.c_str());
 	image.channel(0);*/
-	unsigned char *h_img;
+	
 	//int height = image.height();
 	//int width = image.width();
-	int height = 10;
-	int width = 10;
+	int height = 5;
+	int width = 5;
+	unsigned char *h_img;
 	h_img = (unsigned char *)malloc(height *width * sizeof(unsigned char));
 
 	for (int i = 0; i < height; i++) {
@@ -240,6 +232,8 @@ int main()
 	clock_t  start;
 
 	gpu_kernel(h_img, height, width);
+	prefixSum2D(h_img, height, width);
+
 	/*switch (type)
 	{
 	case 1:gpu_kernel(h_img, height, width, blur);
